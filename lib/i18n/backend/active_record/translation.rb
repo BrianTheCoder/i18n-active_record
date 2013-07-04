@@ -44,66 +44,67 @@ module I18n
     #     :value  => lambda { |key, options| 'FOO' }
     #   Translation.find_by_locale_and_key('en', 'foo').value
     #   # => 'FOO'
-    class ActiveRecord
-      class Translation < ::ActiveRecord::Base
-        TRUTHY_CHAR = "\001"
-        FALSY_CHAR = "\002"
+    module Translation
+      extend ActiveSupport::Concern
 
-        self.table_name = 'translations'
+      TRUTHY_CHAR = "\001"
+      FALSY_CHAR = "\002"
+
+      included do
         attr_protected :is_proc, :interpolations
 
         serialize :value
         serialize :interpolations, Array
+      end
 
-        class << self
-          def locale(locale)
-            scoped(:conditions => { :locale => locale.to_s })
-          end
-
-          def lookup(keys, *separator)
-            column_name = connection.quote_column_name('key')
-            keys = Array(keys).map! { |key| key.to_s }
-
-            unless separator.empty?
-              warn "[DEPRECATION] Giving a separator to Translation.lookup is deprecated. " <<
-                "You can change the internal separator by overwriting FLATTEN_SEPARATOR."
-            end
-
-            namespace = "#{keys.last}#{I18n::Backend::Flatten::FLATTEN_SEPARATOR}%"
-            scoped(:conditions => ["#{column_name} IN (?) OR #{column_name} LIKE ?", keys, namespace])
-          end
-
-          def available_locales
-            Translation.find(:all, :select => 'DISTINCT locale').map { |t| t.locale.to_sym }
-          end
+      module ClassMethods
+        def locale(locale)
+          scoped(:conditions => { :locale => locale.to_s })
         end
 
-        def interpolates?(key)
-          self.interpolations.include?(key) if self.interpolations
-        end
+        def lookup(keys, *separator)
+          column_name = connection.quote_column_name('key')
+          keys = Array(keys).map! { |key| key.to_s }
 
-        def value
-          value = read_attribute(:value)
-          if is_proc
-            Kernel.eval(value)
-          elsif value == FALSY_CHAR
-            false
-          elsif value == TRUTHY_CHAR
-            true
-          else
-            value
-          end
-        end
-
-        def value=(value)
-          if value === false
-            value = FALSY_CHAR
-          elsif value === true
-            value = TRUTHY_CHAR
+          unless separator.empty?
+            warn "[DEPRECATION] Giving a separator to Translation.lookup is deprecated. " <<
+              "You can change the internal separator by overwriting FLATTEN_SEPARATOR."
           end
 
-          write_attribute(:value, value)
+          namespace = "#{keys.last}#{I18n::Backend::Flatten::FLATTEN_SEPARATOR}%"
+          scoped(:conditions => ["#{column_name} IN (?) OR #{column_name} LIKE ?", keys, namespace])
         end
+
+        def available_locales
+          Translation.find(:all, :select => 'DISTINCT locale').map { |t| t.locale.to_sym }
+        end
+      end
+
+      def interpolates?(key)
+        self.interpolations.include?(key) if self.interpolations
+      end
+
+      def value
+        value = read_attribute(:value)
+        if is_proc
+          Kernel.eval(value)
+        elsif value == FALSY_CHAR
+          false
+        elsif value == TRUTHY_CHAR
+          true
+        else
+          value
+        end
+      end
+
+      def value=(value)
+        if value === false
+          value = FALSY_CHAR
+        elsif value === true
+          value = TRUTHY_CHAR
+        end
+
+        write_attribute(:value, value)
       end
     end
   end
