@@ -18,4 +18,5 @@ Gem::Specification.new do |s|
   s.rubyforge_project = '[none]'
 
   s.add_dependency 'i18n', '>= 0.5.0'
+  s.add_dependency 'activesupport', '~> 3'
 end

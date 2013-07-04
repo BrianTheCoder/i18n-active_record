@@ -1,4 +1,4 @@
-require 'active_record'
+require 'active_support/concern'
 
 module I18n
   module Backend
@@ -46,11 +46,15 @@ module I18n
     #   # => 'FOO'
     class ActiveRecord
       module Translation
+        extend ActiveSupport::Concern
+
         TRUTHY_CHAR = "\001"
         FALSY_CHAR = "\002"
 
         included do
           attr_protected :is_proc, :interpolations
+
+          validates :key, presence: true, uniqueness: true
 
           serialize :value
           serialize :interpolations, Array
